@@ -1,0 +1,24 @@
+name: Superpowers Scout tests
+on:
+  push:
+    paths:
+      - 'extensions/superpowers-scout/**'
+      - '.github/workflows/superpowers-scout-tests.yml'
+  pull_request:
+    paths:
+      - 'extensions/superpowers-scout/**'
+      - '.github/workflows/superpowers-scout-tests.yml'
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Unit tests (no external credentials)
+        working-directory: extensions/superpowers-scout
+        run: python -m unittest discover -s tests -v

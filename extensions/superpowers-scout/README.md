@@ -1,43 +1,65 @@
-# Superpowers — shared GitHub research + prompt optimisation
+# Superpowers Scout — optional research and web-design toolkit
 
-Two surfaces: a private ChatGPT skill plugin and a standalone browser-based agent. The same methodology is documented in the plugin and implemented by `engine/core.py` for the standalone service.
+**An independent extension to [obra/superpowers](https://github.com/obra/superpowers), not the original Superpowers project.** This folder provides a Python research agent, a local HTTP interface, a CLI entry point and a website-reconstruction skill. The fork's upstream framework and release cadence are separate from this extension.
 
-## Run locally
-Python 3.10+; no external Python packages needed.
+## What works
+
+- GitHub repository discovery and ranking using repository name, description, **README excerpts**, topics and bounded popularity signals. README evidence is fetched for shortlisted candidates and reranking happens after inspection.
+- Skill-file inspection **only for explicit agent-skill searches**. For website cloning and real software libraries, SKILL.md presence has **zero ranking bonus**.
+- Failure-specific search strategies. An ordinary investigation tries two distinct search queries by default before shortlisting; a supplied failure requires at least three where the budget allows. This is a **research loop, not a code-execution or screenshot-repair loop**.
+- Query and inspection caching in SQLite under `~/.cache/superpowers-scout/cache.sqlite3` (or `$XDG_CACHE_HOME/superpowers-scout/cache.sqlite3`). Configure `SUPERPOWERS_DB` to use an attached persistent volume when hosting. Cache persistence is not guaranteed on ephemeral hosting.
+- Bounded GitHub API requests per investigation, explicit GitHub rate-limit errors and short retry/backoff for transient 5xx/network failures. Set `GITHUB_TOKEN` for meaningful throughput; **unauthenticated API quota is very limited**.
+- Honest prompt refinement: a deterministic *execution brief* by default, optional actual model-assisted rewriting with `OPENAI_API_KEY`, labelled `prompt_optimisation_method`.
+- A local-first HTTP server with optional bearer authentication, CORS allowlist, request quota, concurrency cap, validated inputs and generic server errors. It will **not listen on a non-local interface without `SUPERPOWERS_API_KEY`**.
+- A CLI that calls **the exact same Python engine** as the server. The ChatGPT plugin remains an **instructions-only skill** unless an execution environment or explicit HTTP tool is provided.
+- Design and cloning checklist: `skills/web-design/SKILL.md` and `examples/website-reconstruction-brief.md`.
+
+## Quick start
+
+Python 3.10+; no external Python packages are required.
+
+```bash
+# From the fork root:
+cd extensions/superpowers-scout
+export GITHUB_TOKEN='your-token' # strongly recommended; not committed to Git
+python -m engine.cli --prompt 'Clone the authorised landing page at https://example.com' --no-model
+python -m engine.cli --prompt 'Fix the clone' --failure 'On mobile the header overflows' --no-model
+python server.py
+# Then open http://127.0.0.1:8000
+```
+
+Generation uses `OPENAI_API_KEY`, if set. By default `POST /api/run` constructs a deterministic brief, refines it with a model if configured, and then optionally asks the model for an answer. This **does not** execute code or verify the answer.
+
+## APIs
+
+- `POST /api/run` with `{"prompt":"...", "failure":"...", "max_rounds":4, "strict":true, "refine_prompt":true}`.
+- `POST /api/investigate` with `{"prompt":"...", "failure":"...", "include_communities":true, "use_laya":false}` for research leads without code execution.
+- `GET /api/manifest` exposes the shared evidence-policy and workflow manifest.
+- `GET /health` checks server availability.
+
+`strict: true` prevents *both* model refinement and answer generation when the evidence shortlist is inadequate. It does **not** imply the shortlisted code has passed build, security, accessibility or screenshot QA.
+
+For remote hosting, use `HOST=0.0.0.0 SUPERPOWERS_API_KEY=<secret>` and TLS via the host's proxy. Set `SUPERPOWERS_ALLOWED_ORIGINS=https://your.domain` only when cross-origin browser access is required. Per-process request quotas and concurrency limits are **not distributed** across replicas; use an ingress/gateway quota for production. Do not put tokens in public frontend JavaScript. Configure a persistent cache volume if hosting needs persistence.
+
+## Optional Laya and communities
+
+`engine/laya.py` supports an *optional local* `/v1/systemone` decision service. No Laya model is installed or benchmarked by this repository. `engine/discovery.py` searches public Hacker News and Stack Overflow APIs as candidate leads; it does not scrape private boards or verify community claims.
+
+## Shared behaviour and the ChatGPT limitation
+
+`engine.iterative.solve` is the canonical implementation used by `python -m engine.cli` and by `server.py`. `plugin/skills/superpowers/SKILL.md` points at that engine and uses it when the local workspace or an authenticated API is actually accessible. The ChatGPT skill cannot create a global pre-answer hook or independently connect to this HTTP server. Without those capabilities, any manual search is a **fallback**, not a claim that the plugin and server executed the same process.
+
+`workflow_spec.json` describes shared workflow intent; unlike executable code, it does not guarantee behaviour without a running tool. The root fork follows the separate `obra/superpowers` project. If the fork is behind upstream, synchronise it separately and review the upstream changes; do not overwrite upstream framework files while changing this extension.
+
+## Tests
 
 ```bash
 cd extensions/superpowers-scout
-export OPENAI_API_KEY='your-key' # optional: without this, research and prompt improvement still work
-export GITHUB_TOKEN='your-token' # optional: improves GitHub rate limits
-python server.py
+python -m unittest discover -s tests -v
 ```
 
-Open http://localhost:8000. Every POST to `/api/run` first performs GitHub searches, then produces an improved prompt, then optionally calls the language model. A failed GitHub search is reported, not concealed. This is a best-effort research gate, not a guarantee of GitHub availability.
+The tests mock GitHub and model calls and exercise local HTTP handling. A green test suite does **not** demonstrate live API throughput, accurate visual cloning, live Laya inference or security certification.
 
-## Deployment
-Can be deployed on a Python-capable hosting service; set `PORT`, `OPENAI_API_KEY`, and optionally `GITHUB_TOKEN`. Do not put keys in frontend code. For production add authentication, request quotas, observability, retry/backoff and provider-specific deployment configuration. Do not expose the API publicly without authentication.
+## Non-goals
 
-## Limitations
-The private plugin is a skill-based workflow, not a background interceptor for every ChatGPT message. The standalone agent enforces research-before-generation on its own endpoint. GitHub repository discovery uses public GitHub API search, not uncontrolled HTML scraping; GitHub results are candidates, not independently audited code. The model integration uses the OpenAI Chat Completions API when a key is supplied.
-
-## v0.2 research upgrade
-- Searches GitHub API, scores candidates transparently and inspects skill-file paths.
-- Reads up to three bounded SKILL.md previews as **untrusted** text; never executes downloaded code.
-- Adds `strict: true` in POST `/api/run` to refuse AI generation when research is incomplete.
-- Stores cached public GitHub metadata in SQLite (set `SUPERPOWERS_DB` for persistent disk).
-- API authentication: set `SUPERPOWERS_API_KEY` and pass `Authorization: Bearer <key>`.
-- The private ChatGPT plugin is a *skill*, not an HTTP-connected app. A single hosted API shared by both surfaces is **not** yet available.
-
-## Version 0.3: iterative recovery and design quality
-The standalone `/api/run` now attempts up to four distinct GitHub queries by default, scores candidates against the actual type of task, inspects candidate skills and records a research trace. `max_rounds` can be set from 1 to 6; `strict: true` prevents AI generation if the evidence shortlist fails its threshold. The gate is heuristic: a real website clone still needs screenshot comparison, interaction tests and manual design review. This is not an autonomous coding loop and does not run untrusted code.
-
-
-## v0.4: cross-source investigation and optional Laya
-`POST /api/investigate` accepts `{ "prompt": "...", "max_rounds": 3, "include_communities": true, "use_laya": false }`. It performs bounded GitHub research plus public Hacker News and Stack Overflow discovery. Community posts are leads, not verified answers. This endpoint returns evidence, not executed fixes.
-
-Laya is **optional**. Run a compatible Laya `/v1/systemone` HTTP server locally, then set `LAYA_BASE_URL=http://127.0.0.1:8001` and pass `use_laya: true`. The adapter deliberately rejects remote HTTP hosts and reports failures instead of claiming inference succeeded. The payload contract must be checked against the installed Laya server version. No model weights are bundled; no Laya inference has been benchmarked here. The existing `/api/run` endpoint retains its v0.3 behaviour.
-
-Research is bounded and cannot guarantee finding the best possible solution. Autonomous code modification, screenshot comparison and repeated repair are not implemented. Public source retrieval must comply with applicable terms and rate limits.
-
-## Website design and cloning specialisation
-See `skills/web-design/SKILL.md` and `examples/website-reconstruction-brief.md`. This is a documented execution workflow for capable coding/browser agents, **not** an implemented screenshot-to-code or visual regression executor. It covers reference inspection, evidence-led library selection, accessibility, performance, screenshot comparisons, and iterative repair. A runtime with browser and code-editing tools is required to execute those steps.
+This is not a general background ChatGPT interceptor, an automatic code-modifying agent, an installation or security audit, or an implemented browser screenshot-to-code comparator. Respect licences, site ownership and access restrictions; do not copy unauthorised protected assets. Research results remain untrusted source material.

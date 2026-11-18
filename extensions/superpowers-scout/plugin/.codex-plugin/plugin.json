@@ -1,29 +1,30 @@
 {
   "name": "superpowers-github-scout",
-  "version": "0.4.0",
-  "description": "Iterative multi-source problem solving, GitHub and community research, and optional Laya decision routing.",
+  "version": "0.5.0",
+  "description": "Independent evidence-led research and website design extension for agentic workflows.",
   "author": {
-    "name": "Superpowers"
+    "name": "Superpowers Scout contributors"
   },
   "keywords": [
     "github",
-    "skills",
-    "prompt engineering",
-    "agent",
-    "research"
+    "research",
+    "web design",
+    "website reconstruction",
+    "quality assurance",
+    "agent"
   ],
   "skills": "./skills",
   "interface": {
-    "displayName": "Superpowers GitHub Scout",
-    "developerName": "Superpowers",
-    "shortDescription": "Research first. Build smarter.",
-    "longDescription": "Improve task briefs and discover relevant GitHub repositories, reusable skills and MCP tools before answering development requests. Checks sources and limitations. A companion standalone agent enforces the pre-answer research order on its own endpoint.",
+    "displayName": "Superpowers Scout",
+    "developerName": "Superpowers Scout contributors",
+    "shortDescription": "Evidence before implementation.",
+    "longDescription": "Independent extension that finds and ranks research leads from GitHub and relevant communities. For website reconstruction it emphasises visual comparison and accessible interaction QA. The plugin itself is an instructions-only skill: it cannot intercept every ChatGPT message or call a local server without a configured tool.",
     "category": "Developer Tools",
     "capabilities": [],
     "defaultPrompt": [
-      "Use Superpowers to research GitHub before building my app.",
-      "Find the best open-source skills and repos for this task.",
-      "Improve this prompt and then solve it using verified tools."
+      "Investigate the best approach for recreating this authorised website.",
+      "Find and compare open-source implementations for this bug.",
+      "Turn these project requirements into a testable implementation brief."
     ]
   }
 }
