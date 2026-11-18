@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "superpowers-github-scout",
+  "version": "0.4.0",
+  "description": "Iterative multi-source problem solving, GitHub and community research, and optional Laya decision routing.",
+  "author": {
+    "name": "Superpowers"
+  },
+  "keywords": [
+    "github",
+    "skills",
+    "prompt engineering",
+    "agent",
+    "research"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Superpowers GitHub Scout",
+        "developerName": "Superpowers",
+        "shortDescription": "Research first. Build smarter.",
+        "longDescription": "Improve task briefs and discover relevant GitHub repositories, reusable skills and MCP tools before answering development requests. Checks sources and limitations. A companion standalone agent enforces the pre-answer research order on its own endpoint.",
+        "category": "Developer Tools",
+        "capabilities": [],
+        "defaultPrompt": [
+          "Use Superpowers to research GitHub before building my app.",
+          "Find the best open-source skills and repos for this task.",
+          "Improve this prompt and then solve it using verified tools."
+        ]
+      }
+    }
+  }
+}
